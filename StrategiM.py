@@ -189,18 +189,7 @@ class EstrategiaClient:
                     print("Opção inválida. Tente novamente.")
             except ValueError:
                 print("Entrada inválida. Por favor, insira um número.")
-
-def print_banner():
-    # Sequências de escape ANSI para cor roxa (magenta)
-    BANNER_COLOR = '\033[45m'  # Fundo roxo
-    TEXT_COLOR = '\033[97m'    # Texto branco
-    RESET_COLOR = '\033[0m'    # Resetar cor
-
-    banner_text = "MAKHRINA"
-    banner_length = len(banner_text) + 4
-    print(f"{BANNER_COLOR}{TEXT_COLOR}{' ' * banner_length}")
-    print(f"{BANNER_COLOR}{TEXT_COLOR}  {banner_text}  {RESET_COLOR}")
-    print(f"{BANNER_COLOR}{TEXT_COLOR}{' ' * banner_length}{RESET_COLOR}")
+
 
 def main():
 
