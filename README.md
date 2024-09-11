@@ -13,4 +13,4 @@ Caso você não tenha instalado, abra o prompt de comando com permissão de admi
 - pip instal urllib
 
   Depois disso você pode rodar normalmente o script:
-  python Strategi.py
+  python StrategiM.py
