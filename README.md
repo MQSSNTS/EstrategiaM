@@ -10,7 +10,6 @@ agora, faça o download das seguintes bibliotecas:
 
 - requests
 - pathlib
-- urllib
 
 abra o prompt de comando com permissão de administrador e dê os seguintes comandos:
 
@@ -18,7 +17,6 @@ abra o prompt de comando com permissão de administrador e dê os seguintes coma
 
 - pip install pathlib
 
-- pip instal urllib
 
   Depois disso você pode rodar normalmente o script:
   python StrategiM.py
