@@ -81,33 +81,33 @@ class EstrategiaClient:
             os.makedirs(path, exist_ok=True)
 
     def download_files(self, course_name, download_map, destination_folder):
-        sanitized_course_name = self.sanitize_file_name(course_name)
+        sanitized_course_name = self.sanitize_file_name(course_name.strip())  # Remover espaços extras
         course_directory = os.path.join(destination_folder, sanitized_course_name)
 
         # Verificar e criar diretório do curso
         self.ensure_directory_exists(course_directory)
 
         for module_name, files in download_map.items():
-            sanitized_module_name = self.sanitize_file_name(module_name)
+            sanitized_module_name = self.sanitize_file_name(module_name.strip())  # Remover espaços extras
             module_directory = os.path.join(course_directory, sanitized_module_name)
 
             # Verificar comprimento do caminho do diretório do módulo
             while len(module_directory) > 260:
                 print(f"Caminho muito longo: {module_directory}")
                 print(f"Recomendamos renomear a pasta. O nome original é muito longo: '{sanitized_module_name}'.")
-                new_module_name = self.read_input("Insira o novo nome da pasta: ")
+                new_module_name = self.read_input("Insira o novo nome da pasta: ").strip()  # Remover espaços extras
                 new_module_name = self.sanitize_file_name(new_module_name)
                 module_directory = os.path.join(course_directory, new_module_name)
                 # Verificar e criar diretório do módulo
                 self.ensure_directory_exists(module_directory)
 
             for file_name, file_url in files.items():
-                sanitized_file_name = self.sanitize_file_name(file_name)
+                sanitized_file_name = self.sanitize_file_name(file_name.strip())  # Remover espaços extras
 
                 # Truncar o nome do arquivo se for muito longo
                 if len(sanitized_file_name) > 100:
                     print(f"O nome do arquivo é muito longo: {sanitized_file_name}")
-                    sanitized_file_name = self.sanitize_file_name(sanitized_file_name[:100])
+                    sanitized_file_name = self.sanitize_file_name(sanitized_file_name[:100].strip())
                     print(f"Renomeando o arquivo para: {sanitized_file_name}")
 
                 file_path = os.path.join(module_directory, sanitized_file_name)
@@ -116,7 +116,7 @@ class EstrategiaClient:
                 while len(file_path) > 260:
                     print(f"Caminho muito longo: {file_path}")
                     print(f"Recomendamos você renomear essa pasta para continuar o download (nome do módulo: '{sanitized_module_name}').")
-                    new_module_name = self.read_input("Insira o novo nome da pasta: ")
+                    new_module_name = self.read_input("Insira o novo nome da pasta: ").strip()  # Remover espaços extras
                     new_module_name = self.sanitize_file_name(new_module_name)
                     module_directory = os.path.join(course_directory, new_module_name)
                     self.ensure_directory_exists(module_directory)
@@ -147,6 +147,51 @@ class EstrategiaClient:
                 except requests.RequestException as e:
                     print(f"Erro ao baixar arquivo: {file_url}")
                     print(e)
+
+            # Após o download de todos os arquivos do módulo, renomear os vídeos
+            print(f"Renomeando vídeos no módulo: {module_name}")
+            self.rename_videos(module_directory)
+
+
+    def rename_videos(self, directory):
+        # Verificar se o diretório existe
+        if not os.path.exists(directory):
+            print(f"Erro: O diretório {directory} não existe.")
+            return
+        
+        # Verifica se o diretório está vazio
+        if not os.listdir(directory):
+            print(f"Ignorando o diretório vazio: {directory}")
+            return
+        
+        # Lista todos os arquivos no diretório
+        files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+        
+        # Filtra apenas os arquivos de vídeo (extensões comuns de vídeos)
+        video_extensions = ('.mp4', '.avi', '.mkv', '.mov', '.wmv', '.flv')
+        video_files = [f for f in files if f.lower().endswith(video_extensions)]
+        
+        # Ordena os arquivos pela data de modificação (do mais antigo para o mais recente)
+        video_files.sort(key=lambda f: os.path.getmtime(os.path.join(directory, f)))
+
+        if not video_files:
+            print(f"Nenhum vídeo encontrado no diretório: {directory}")
+            return
+
+        # Renomeia os arquivos adicionando um número sequencial no início
+        for index, file_name in enumerate(video_files, start=1):
+            # Obtém o caminho completo do arquivo original
+            old_path = os.path.join(directory, file_name)
+
+            # Gera o novo nome com o número sequencial
+            new_file_name = f"{index}. {file_name}"
+            new_path = os.path.join(directory, new_file_name)
+
+            # Renomeia o arquivo
+            os.rename(old_path, new_path)
+            print(f"Renomeado: {old_path} -> {new_path}")
+
+    
 
     def sanitize_file_name(self, name):
         # Função para sanitizar o nome do arquivo ou diretório
