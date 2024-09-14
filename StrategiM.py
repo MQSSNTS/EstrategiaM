@@ -150,7 +150,9 @@ class EstrategiaClient:
 
     def sanitize_file_name(self, name):
         # Função para sanitizar o nome do arquivo ou diretório
-        return name.replace('/', '_').replace('\\', '_').replace(':', '_')
+        # Substitui caracteres inválidos: /, \, :, | por _
+        return name.replace('/', '_').replace('\\', '_').replace(':', '_').replace('|', '_')
+
     @staticmethod
     def read_input(prompt):
         return input(prompt).strip()
