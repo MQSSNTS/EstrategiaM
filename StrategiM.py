@@ -74,67 +74,84 @@ class EstrategiaClient:
                             download_map[module_name][f"{file_name}_video.mp4"] = content["resolutions"]["720p"]
         return download_map
 
+
+
     def download_files(self, course_name, download_map, destination_folder):
-        sanitized_course_name = self.sanitize_file_name(course_name)
-        course_directory = os.path.join(destination_folder, sanitized_course_name)
-        
-        # Verificar se o diretório do curso existe
-        if not os.path.exists(course_directory):
-            print(f"Criando diretório: {course_directory}")
-            os.makedirs(course_directory, exist_ok=True)
+            sanitized_course_name = self.sanitize_file_name(course_name)
+            course_directory = os.path.join(destination_folder, sanitized_course_name)
 
-        for module_name, files in download_map.items():
-            sanitized_module_name = self.sanitize_file_name(module_name)
-            module_directory = os.path.join(course_directory, sanitized_module_name)
-            
-            # Verificar se o diretório do módulo existe
-            if not os.path.exists(module_directory):
-                print(f"Criando diretório: {module_directory}")
-                os.makedirs(module_directory, exist_ok=True)
+            # Verificar se o diretório do curso existe
+            if not os.path.exists(course_directory):
+                print(f"Criando diretório: {course_directory}")
+                os.makedirs(course_directory, exist_ok=True)
 
-            for file_name, file_url in files.items():
-                sanitized_file_name = self.sanitize_file_name(file_name)
-                file_path = os.path.join(module_directory, sanitized_file_name)
-                
-                # Verificar comprimento do caminho
-                if len(file_path) > 260:  # Limite comum para caminhos em Windows
-                    print(f"Caminho muito longo: {file_path}")
-                    print(f"Recomendamos você renomear essa pasta caso queira seguir com o download /isso acontece pq o nome da pasta é muito longo/ '{sanitized_module_name}'.")
+            for module_name, files in download_map.items():
+                sanitized_module_name = self.sanitize_file_name(module_name)
+                module_directory = os.path.join(course_directory, sanitized_module_name)
+
+                # Verificar comprimento do caminho do diretório do módulo
+                if len(module_directory) > 260:
+                    print(f"Caminho muito longo: {module_directory}")
+                    print(f"Recomendamos renomear a pasta. O nome original é muito longo: '{sanitized_module_name}'.")
                     new_module_name = self.read_input("Insira o novo nome da pasta: ")
                     new_module_name = self.sanitize_file_name(new_module_name)
                     module_directory = os.path.join(course_directory, new_module_name)
-                    if not os.path.exists(module_directory):
-                        print(f"Criando diretório: {module_directory}")
-                        os.makedirs(module_directory, exist_ok=True)
+
+                # Verificar se o diretório do módulo existe
+                if not os.path.exists(module_directory):
+                    print(f"Criando diretório: {module_directory}")
+                    os.makedirs(module_directory, exist_ok=True)
+
+                for file_name, file_url in files.items():
+                    sanitized_file_name = self.sanitize_file_name(file_name)
+
+                    # Truncar o nome do arquivo se for muito longo
+                    if len(sanitized_file_name) > 100:
+                        print(f"O nome do arquivo é muito longo: {sanitized_file_name}")
+                        sanitized_file_name = self.sanitize_file_name(sanitized_file_name[:100])
+                        print(f"Renomeando o arquivo para: {sanitized_file_name}")
+
                     file_path = os.path.join(module_directory, sanitized_file_name)
-                    
-                try:
-                    # Verificar se a URL do arquivo é válida antes de tentar o download
-                    if file_url:
-                        with self.session.get(file_url, stream=True) as response:
-                            response.raise_for_status()
-                            
-                            # Verificar o tipo de conteúdo para PDFs
-                            if "pdf" in sanitized_file_name and response.headers.get('Content-Type') != 'application/pdf':
-                                print(f"Erro ao baixar PDF: {file_url} - Tipo de conteúdo inválido.")
-                                continue
-                            
-                            # Garantir que o diretório do arquivo exista
-                            file_dir = os.path.dirname(file_path)
-                            if not os.path.exists(file_dir):
-                                print(f"Criando diretório: {file_dir}")
-                                os.makedirs(file_dir, exist_ok=True)
-                            
-                            # Baixar o arquivo
-                            with open(file_path, 'wb') as file:
-                                for chunk in response.iter_content(chunk_size=8192):
-                                    file.write(chunk)
-                        print(f"Arquivo baixado: {file_path}")
-                    else:
-                        print(f"URL do arquivo inválida: {file_url}")
-                except requests.RequestException as e:
-                    print(f"Erro ao baixar arquivo: {file_url}")
-                    print(e)
+
+                    # Verificar comprimento do caminho completo do arquivo
+                    if len(file_path) > 260:
+                        print(f"Caminho muito longo: {file_path}")
+                        print(f"Recomendamos você renomear essa pasta para continuar o download (nome do módulo: '{sanitized_module_name}').")
+                        new_module_name = self.read_input("Insira o novo nome da pasta: ")
+                        new_module_name = self.sanitize_file_name(new_module_name)
+                        module_directory = os.path.join(course_directory, new_module_name)
+                        if not os.path.exists(module_directory):
+                            print(f"Criando diretório: {module_directory}")
+                            os.makedirs(module_directory, exist_ok=True)
+                        file_path = os.path.join(module_directory, sanitized_file_name)
+
+                    try:
+                        # Verificar se a URL do arquivo é válida antes de tentar o download
+                        if file_url:
+                            with self.session.get(file_url, stream=True) as response:
+                                response.raise_for_status()
+
+                                # Verificar o tipo de conteúdo para PDFs
+                                if "pdf" in sanitized_file_name and response.headers.get('Content-Type') != 'application/pdf':
+                                    print(f"Erro ao baixar PDF: {file_url} - Tipo de conteúdo inválido.")
+                                    continue
+
+                                # Garantir que o diretório do arquivo exista
+                                file_dir = os.path.dirname(file_path)
+                                if not os.path.exists(file_dir):
+                                    print(f"Criando diretório: {file_dir}")
+                                    os.makedirs(file_dir, exist_ok=True)
+
+                                # Baixar o arquivo
+                                with open(file_path, 'wb') as file:
+                                    for chunk in response.iter_content(chunk_size=8192):
+                                        file.write(chunk)
+                            print(f"Arquivo baixado: {file_path}")
+                        else:
+                            print(f"URL do arquivo inválida: {file_url}")
+                    except requests.RequestException as e:
+                        print(f"Erro ao baixar arquivo: {file_url}")
+                        print(e)
 
     def sanitize_file_name(self, name, max_length=255):
         invalid_chars = '<>:\"/\\|?*'  # Caracteres inválidos em caminhos de arquivos
@@ -189,7 +206,18 @@ class EstrategiaClient:
                     print("Opção inválida. Tente novamente.")
             except ValueError:
                 print("Entrada inválida. Por favor, insira um número.")
-
+
+def print_banner():
+    # Sequências de escape ANSI para cor roxa (magenta)
+    BANNER_COLOR = '\033[45m'  # Fundo roxo
+    TEXT_COLOR = '\033[97m'    # Texto branco
+    RESET_COLOR = '\033[0m'    # Resetar cor
+
+    banner_text = "MAKHRINA"
+    banner_length = len(banner_text) + 4
+    print(f"{BANNER_COLOR}{TEXT_COLOR}{' ' * banner_length}")
+    print(f"{BANNER_COLOR}{TEXT_COLOR}  {banner_text}  {RESET_COLOR}")
+    print(f"{BANNER_COLOR}{TEXT_COLOR}{' ' * banner_length}{RESET_COLOR}")
 
 def main():
 
