@@ -2,6 +2,8 @@ import os
 import requests
 from pathlib import Path
 from urllib.parse import urljoin
+import re
+
 
 class EstrategiaClient:
     ESTRATEGIA_CONCURSOS_LOGIN_ENDPOINT = "https://api.accounts.estrategia.com/auth/login"
@@ -80,64 +82,71 @@ class EstrategiaClient:
             print(f"Criando diretório: {path}")
             os.makedirs(path, exist_ok=True)
 
+
+
     def download_files(self, course_name, download_map, destination_folder):
-        sanitized_course_name = self.sanitize_file_name(course_name.strip())  # Remover espaços extras
+        sanitized_course_name = self.sanitize_file_name(course_name.strip())
         course_directory = os.path.join(destination_folder, sanitized_course_name)
 
-        # Verificar e criar diretório do curso
         self.ensure_directory_exists(course_directory)
 
         for module_name, files in download_map.items():
-            sanitized_module_name = self.sanitize_file_name(module_name.strip())  # Remover espaços extras
+            sanitized_module_name = self.sanitize_file_name(module_name.strip())
             module_directory = os.path.join(course_directory, sanitized_module_name)
+            print(f"Verificando diretório do módulo: {module_directory}")
 
-            # Verificar comprimento do caminho do diretório do módulo
-            while len(module_directory) > 260:
+            # Verifica se o caminho do diretório do módulo é muito longo e permite que o usuário insira um nome mais curto
+            while len(module_directory) > 170:
                 print(f"Caminho muito longo: {module_directory}")
-                print(f"Recomendamos renomear a pasta. O nome original é muito longo: '{sanitized_module_name}'.")
-                new_module_name = self.read_input("Insira o novo nome da pasta: ").strip()  # Remover espaços extras
-                new_module_name = self.sanitize_file_name(new_module_name)
-                module_directory = os.path.join(course_directory, new_module_name)
-                # Verificar e criar diretório do módulo
+                print(f"O nome do módulo '{sanitized_module_name}' é muito longo.")
+                new_module_name = self.read_input("Insira um nome mais curto para o módulo: ").strip()
+                sanitized_module_name = self.sanitize_file_name(new_module_name)
+                module_directory = os.path.join(course_directory, sanitized_module_name)
                 self.ensure_directory_exists(module_directory)
 
             for file_name, file_url in files.items():
-                sanitized_file_name = self.sanitize_file_name(file_name.strip())  # Remover espaços extras
+                sanitized_file_name = self.sanitize_file_name(file_name.strip())
 
-                # Truncar o nome do arquivo se for muito longo
                 if len(sanitized_file_name) > 100:
-                    print(f"O nome do arquivo é muito longo: {sanitized_file_name}")
-                    sanitized_file_name = self.sanitize_file_name(sanitized_file_name[:100].strip())
-                    print(f"Renomeando o arquivo para: {sanitized_file_name}")
+                    sanitized_file_name = sanitized_file_name[:100]
+
+                # Verifica se o arquivo é um vídeo e adiciona a extensão .mp4, se necessário
+                if file_url and file_name.lower().endswith("_video"):
+                    if not sanitized_file_name.lower().endswith(".mp4"):
+                        sanitized_file_name += ".mp4"
 
                 file_path = os.path.join(module_directory, sanitized_file_name)
+                print(f"Verificando caminho do arquivo: {file_path}")
 
-                # Verificar comprimento do caminho completo do arquivo
-                while len(file_path) > 260:
+                # Verifica se o caminho do arquivo é muito longo e permite que o usuário insira um nome mais curto
+                while len(file_path) > 250:
                     print(f"Caminho muito longo: {file_path}")
-                    print(f"Recomendamos você renomear essa pasta para continuar o download (nome do módulo: '{sanitized_module_name}').")
-                    new_module_name = self.read_input("Insira o novo nome da pasta: ").strip()  # Remover espaços extras
-                    new_module_name = self.sanitize_file_name(new_module_name)
-                    module_directory = os.path.join(course_directory, new_module_name)
-                    self.ensure_directory_exists(module_directory)
+                    new_file_name = self.read_input("Insira um nome menor para o arquivo: ").strip()
+                    sanitized_file_name = self.sanitize_file_name(new_file_name)
+                    if file_url and file_name.lower().endswith("_video"):
+                        if not sanitized_file_name.lower().endswith(".mp4"):
+                            sanitized_file_name += ".mp4"
                     file_path = os.path.join(module_directory, sanitized_file_name)
 
-                # Garantir que o diretório do arquivo exista
+                                    # Verifique se o caminho ainda é longo e trunque se necessário
+                    if len(file_path) > 260:
+                        truncated_file_name = sanitized_file_name[:150]
+                        file_path = os.path.join(module_directory, truncated_file_name)
+
+
                 file_dir = os.path.dirname(file_path)
                 self.ensure_directory_exists(file_dir)
 
                 try:
-                    # Verificar se a URL do arquivo é válida antes de tentar o download
                     if file_url:
+                        print(f"Baixando arquivo: {file_url}")
                         with self.session.get(file_url, stream=True) as response:
                             response.raise_for_status()
 
-                            # Verificar o tipo de conteúdo para PDFs
                             if "pdf" in sanitized_file_name and response.headers.get('Content-Type') != 'application/pdf':
                                 print(f"Erro ao baixar PDF: {file_url} - Tipo de conteúdo inválido.")
                                 continue
 
-                            # Baixar o arquivo
                             with open(file_path, 'wb') as file:
                                 for chunk in response.iter_content(chunk_size=8192):
                                     file.write(chunk)
@@ -148,10 +157,8 @@ class EstrategiaClient:
                     print(f"Erro ao baixar arquivo: {file_url}")
                     print(e)
 
-            # Após o download de todos os arquivos do módulo, renomear os vídeos
             print(f"Renomeando vídeos no módulo: {module_name}")
             self.rename_videos(module_directory)
-
 
     def rename_videos(self, directory):
         # Verificar se o diretório existe
@@ -180,23 +187,24 @@ class EstrategiaClient:
 
         # Renomeia os arquivos adicionando um número sequencial no início
         for index, file_name in enumerate(video_files, start=1):
-            # Obtém o caminho completo do arquivo original
             old_path = os.path.join(directory, file_name)
 
-            # Gera o novo nome com o número sequencial
             new_file_name = f"{index}. {file_name}"
             new_path = os.path.join(directory, new_file_name)
 
             # Renomeia o arquivo
-            os.rename(old_path, new_path)
-            print(f"Renomeado: {old_path} -> {new_path}")
+            try:
+                os.rename(old_path, new_path)
+                print(f"Renomeado: {old_path} -> {new_path}")
+            except FileNotFoundError as e:
+                print(f"Erro ao renomear o arquivo: {e}")
 
     
+    def sanitize_file_name(self, file_name):
+        # Remove caracteres inválidos para sistemas de arquivos no Windows
+        sanitized_name = re.sub(r'[<>:"/\\|?*]', '_', file_name)
+        return sanitized_name
 
-    def sanitize_file_name(self, name):
-        # Função para sanitizar o nome do arquivo ou diretório
-        # Substitui caracteres inválidos: /, \, :, | por _
-        return name.replace('/', '_').replace('\\', '_').replace(':', '_').replace('|', '_')
 
     @staticmethod
     def read_input(prompt):
