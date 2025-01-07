@@ -66,15 +66,17 @@ class EstrategiaClient:
                 if content["category"] == "content":
                     file_name = content["name"]
                     if download_type == "pdf" and content["type"] == "pdf":
-                        download_map[module_name][f"{file_name}_pdf.pdf"] = content["data"]
+                        download_map[module_name][f"{file_name}.pdf"] = content["data"]
                     elif download_type == "video" and content["type"] == "video":
-                        download_map[module_name][f"{file_name}_video.mp4"] = content["resolutions"]["720p"]
+                        download_map[module_name][f"{file_name}.mp4"] = content["resolutions"]["720p"]
                     elif download_type == "both":
                         if content["type"] == "pdf":
-                            download_map[module_name][f"{file_name}_pdf.pdf"] = content["data"]
+                            download_map[module_name][f"{file_name}.pdf"] = content["data"]
                         if content["type"] == "video":
-                            download_map[module_name][f"{file_name}_video.mp4"] = content["resolutions"]["720p"]
+                            download_map[module_name][f"{file_name}.mp4"] = content["resolutions"]["720p"]
         return download_map
+
+
 
     def ensure_directory_exists(self, path):
         # Função para garantir que um diretório exista
@@ -201,8 +203,14 @@ class EstrategiaClient:
 
     
     def sanitize_file_name(self, file_name):
-        # Remove caracteres inválidos para sistemas de arquivos no Windows
-        sanitized_name = re.sub(r'[<>:"/\\|?*]', '_', file_name)
+        """
+        Remove caracteres inválidos para sistemas de arquivos no Windows e
+        substitui espaços por underline para evitar problemas com nomes longos.
+        """
+        # Remove caracteres proibidos: <>:"/\|?* e substitui por underscore
+        sanitized_name = re.sub(r'[<>:"/\\|?*\t]', '_', file_name)
+        # Remove espaços duplicados e troca espaços por underscore para evitar erros
+        sanitized_name = re.sub(r'\s+', '_', sanitized_name)
         return sanitized_name
 
 
@@ -236,19 +244,27 @@ class EstrategiaClient:
 
     @staticmethod
     def choose_download_option():
+        options = {
+            1: "pdf",
+            2: "video",
+            3: "both"
+        }
+        
         while True:
             print("Deseja baixar:")
             print("1. PDFs")
             print("2. Vídeos")
             print("3. Ambos")
+            
             try:
                 choice = int(input("Escolha uma opção: "))
-                if 1 <= choice <= 3:
-                    return ["pdf", "video", "both"][choice - 1]
+                if choice in options:
+                    return options[choice]
                 else:
                     print("Opção inválida. Tente novamente.")
             except ValueError:
                 print("Entrada inválida. Por favor, insira um número.")
+
 
 def print_banner():
     # Sequências de escape ANSI para cor roxa (magenta)
@@ -321,6 +337,9 @@ def main():
         download_map = client.get_urls_for_download([selected_module], client.choose_download_option())
 
     pasta_destino = client.read_input("Escolha a pasta de Destino(/tmp é a pasta padrão): ") or "/tmp/"
+
+    if os.name == 'nt':
+        pasta_destino = pasta_destino.replace('/', '\\')
     
     if not download_map:
         print("Opção não tem arquivos para baixar! Tente outra opção!")
